@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOSAIC FLOW - Gestión de Producción</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        mosaic: {
+                            bg: '#09090b',
+                            card: '#121215',
+                            border: '#27272a',
+                            accent: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e',
+                            blue: '#3b82f6'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Custom Styles -->
+    <style>
+        body {
+            background-color: #09090b;
+            color: #f4f4f5;
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style for date picker indicator */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+            opacity: 0.8;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-black">
+
+    <!-- TOP HEADER -->
+    <header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <!-- Brand -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white text-black font-black text-xl flex items-center justify-center rounded tracking-tighter">
+                    M
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-mono font-bold tracking-wider text-base text-white">MOSAIC</h1>
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">FLOW v1.3</span>
+                    </div>
+                    <p class="text-xs text-zinc-400">Sistema de Producción & Calendario (Martes / Jueves)</p>
+                </div>
+            </div>
+
+            <!-- VIEW SELECTOR TABS -->
+            <div class="flex items-center bg-zinc-900/90 p-1 rounded-lg border border-zinc-800 text-xs font-mono">
+                <button id="tab-tablero" onclick="switchView('tablero')" class="px-3 py-1.5 rounded-md flex items-center gap-2 transition bg-zinc-800 text-white font-semibold">
+                    <i class="ph ph-squares-four text-base"></i> Tablero General
+                </button>
+                <button id="tab-cesc" onclick="switchView('cesc')" class="px-3 py-1.5 rounded-md flex items-center gap-2 transition text-zinc-400 hover:text-white">
+                    <i class="ph ph-calendar text-base text-emerald-400"></i> Espacio Cesc <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1 rounded">Calendario</span>
+                </button>
+                <button id="tab-myke" onclick="switchView('myke')" class="px-3 py-1.5 rounded-md flex items-center gap-2 transition text-zinc-400 hover:text-white">
+                    <i class="ph ph-video-camera text-base text-amber-400"></i> Espacio Myke <span class="text-[9px] bg-amber-500/20 text-amber-400 px-1 rounded">Rodaje</span>
+                </button>
+                <button id="tab-boni" onclick="switchView('boni')" class="px-3 py-1.5 rounded-md flex items-center gap-2 transition text-zinc-400 hover:text-white">
+                    <i class="ph ph-scissors text-base text-blue-400"></i> Espacio Boni <span class="text-[9px] bg-blue-500/20 text-blue-400 px-1 rounded">Edición</span>
+                </button>
+            </div>
+
+            <!-- Action Button -->
+            <button onclick="openModal()" class="bg-white hover:bg-zinc-200 text-black font-semibold text-xs px-4 py-2 rounded font-mono transition flex items-center gap-2 shadow-lg shadow-white/5 active:scale-95">
+                <i class="ph ph-plus-circle text-base"></i> Proponer Rodaje
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+        <!-- SUB HEADER / FILTER BAR -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6 text-xs text-zinc-400">
+            <div class="flex items-center gap-2">
+                <span class="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">Filtrar Formato:</span>
+                <div class="flex gap-1" id="filter-container">
+                    <button onclick="setFilter('all')" class="filter-btn active px-2.5 py-1 rounded bg-zinc-800 text-white font-mono" data-filter="all">Todos</button>
+                    <button onclick="setFilter('Freestyle')" class="filter-btn px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 font-mono" data-filter="Freestyle">Freestyles</button>
+                    <button onclick="setFilter('Desmontando')" class="filter-btn px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 font-mono" data-filter="Desmontando">Desmontando</button>
+                    <button onclick="setFilter('Reacciones')" class="filter-btn px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 font-mono" data-filter="Reacciones">Reacciones</button>
+                    <button onclick="setFilter('Lyrics')" class="filter-btn px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 font-mono" data-filter="Lyrics">Lyrics</button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs font-mono text-zinc-400">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Publicación: Martes & Jueves</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 1: TABLERO GENERAL (KANBAN) -->
+        <section id="view-tablero" class="view-panel">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- COL 1: CUADRANDO FECHAS -->
+                <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 flex flex-col min-h-[500px]">
+                    <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                            <h2 class="font-mono text-xs font-bold tracking-wider text-zinc-200 uppercase">1. Cuadrando Fechas</h2>
+                        </div>
+                        <span class="text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded" id="count-cuadrando">0</span>
+                    </div>
+                    <div id="col-cuadrando" class="flex-grow space-y-3 custom-scrollbar overflow-y-auto"></div>
+                </div>
+
+                <!-- COL 2: RODAJE & MATERIAL (MYKE) -->
+                <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 flex flex-col min-h-[500px]">
+                    <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                            <h2 class="font-mono text-xs font-bold tracking-wider text-zinc-200 uppercase">2. Rodaje & Material</h2>
+                        </div>
+                        <span class="text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded" id="count-rodaje">0</span>
+                    </div>
+                    <div id="col-rodaje" class="flex-grow space-y-3 custom-scrollbar overflow-y-auto"></div>
+                </div>
+
+                <!-- COL 3: EDICIÓN & TÍTULO (BONI) -->
+                <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 flex flex-col min-h-[500px]">
+                    <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                            <h2 class="font-mono text-xs font-bold tracking-wider text-zinc-200 uppercase">3. Edición & Miniatura</h2>
+                        </div>
+                        <span class="text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded" id="count-edicion">0</span>
+                    </div>
+                    <div id="col-edicion" class="flex-grow space-y-3 custom-scrollbar overflow-y-auto"></div>
+                </div>
+
+                <!-- COL 4: PROGRAMADO / LISTO (CESC) -->
+                <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 flex flex-col min-h-[500px]">
+                    <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <h2 class="font-mono text-xs font-bold tracking-wider text-zinc-200 uppercase">4. Listo / Programado</h2>
+                        </div>
+                        <span class="text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded" id="count-programado">0</span>
+                    </div>
+                    <div id="col-programado" class="flex-grow space-y-3 custom-scrollbar overflow-y-auto"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VIEW 2: ESPACIO DE CESC -->
+        <section id="view-cesc" class="view-panel hidden space-y-6">
+            <div class="bg-zinc-900/30 border border-zinc-800 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="ph ph-calendar-check text-emerald-400 text-lg"></i> Espacio de Trabajo de Cesc
+                        </h2>
+                        <p class="text-xs text-zinc-400">Control del calendario semanal de publicaciones (Martes y Jueves) y cuadro de disponibilidades.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="bg-zinc-900 border border-zinc-800 p-2 rounded text-center min-w-[90px]">
+                            <span class="text-[10px] text-zinc-500 font-mono block">PROGRAMADOS</span>
+                            <span id="cesc-stat-prog" class="text-lg font-bold font-mono text-emerald-400">0</span>
+                        </div>
+                        <div class="bg-zinc-900 border border-zinc-800 p-2 rounded text-center min-w-[90px]">
+                            <span class="text-[10px] text-zinc-500 font-mono block">PENDIENTES</span>
+                            <span id="cesc-stat-pend" class="text-lg font-bold font-mono text-amber-400">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PLANIFICACIÓN SEMANAL FIJA (MARTES & JUEVES) -->
+                <div class="border-t border-zinc-800/80 pt-4 mt-2">
+                    <h3 class="text-xs font-mono text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="ph ph-clock text-emerald-400"></i> Planificación Semanal Fija (Martes & Jueves)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="cesc-weekly-schedule">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- CALENDARIO MENSUAL COMPLETO -->
+            <div class="bg-zinc-900/30 border border-zinc-800 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-mono text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                        <i class="ph ph-calendar text-emerald-400 text-base"></i> Calendario Mensual de Publicaciones y Propuestas
+                    </h3>
+                    
+                    <!-- Month Navigation -->
+                    <div class="flex items-center gap-3">
+                        <button onclick="changeMonth(-1)" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition">
+                            <i class="ph ph-caret-left text-base"></i>
+                        </button>
+                        <span id="calendar-month-title" class="font-mono text-xs text-emerald-400 font-bold min-w-[120px] text-center uppercase">
+                            OCTUBRE 2026
+                        </span>
+                        <button onclick="changeMonth(1)" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition">
+                            <i class="ph ph-caret-right text-base"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-3 text-[11px] font-mono">
+                        <span class="flex items-center gap-1 text-amber-400"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Propuestas / Cuadrando</span>
+                        <span class="flex items-center gap-1 text-emerald-400"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Programados / Listos</span>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="grid grid-cols-7 gap-1 bg-zinc-950 p-2 rounded-lg border border-zinc-800/80 text-center">
+                    <!-- Days header -->
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Lunes</div>
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Martes</div>
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Miércoles</div>
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Jueves</div>
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Viernes</div>
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Sábado</div>
+                    <div class="text-[10px] font-mono text-zinc-500 py-1">Domingo</div>
+
+                    <!-- Days Grid -->
+                    <div id="calendar-days-container" class="contents">
+                        <!-- Dynamic Calendar cells -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: ESPACIO DE MYKE -->
+        <section id="view-myke" class="view-panel hidden space-y-6">
+            <div class="bg-zinc-900/30 border border-zinc-800 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="ph ph-video-camera text-amber-400 text-lg"></i> Espacio de Trabajo de Myke (Producción & Materiales)
+                        </h2>
+                        <p class="text-xs text-zinc-400">Control de material de rodaje (cámara retro, micros, atrezzo) y paso de archivos a Boni.</p>
+                    </div>
+                </div>
+                <div class="space-y-4" id="myke-cards-container">
+                    <!-- Dynamic Myke list -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: ESPACIO DE BONI -->
+        <section id="view-boni" class="view-panel hidden space-y-6">
+            <div class="bg-zinc-900/30 border border-zinc-800 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="ph ph-scissors text-blue-400 text-lg"></i> Espacio de Trabajo de Boni (Edición & Miniaturas)
+                        </h2>
+                        <p class="text-xs text-zinc-400">Montaje final de vídeos, diseño de carteles/miniaturas y entrega a Cesc.</p>
+                    </div>
+                </div>
+                <div class="space-y-4" id="boni-cards-container">
+                    <!-- Dynamic Boni list -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: PROPONER NUEVO RODAJE (CESC) -->
+    <div id="modal-new" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 class="font-mono font-bold text-sm text-white flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span> PROPONER RODAJE (CESC)
+                </h3>
+                <button onclick="closeModal()" class="text-zinc-500 hover:text-white p-1">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <form id="form-new-video" onsubmit="handleCreateCard(event)" class="space-y-4 text-xs font-mono">
+                <div>
+                    <label class="block text-zinc-400 mb-1">Formato de Contenido *</label>
+                    <select id="form-formato" required class="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:border-emerald-500 outline-none">
+                        <option value="Freestyle">Freestyle</option>
+                        <option value="Desmontando">Desmontando</option>
+                        <option value="Reacciones">Reacciones</option>
+                        <option value="Lyrics">Lyrics</option>
+                        <option value="Lyrics">Reunión</option>
+                    </select>
+                </div>
+
+                <div>
+    <label class="block text-zinc-400 mb-1">Título del Vídeo / Proyecto *</label>
+    <input type="text" id="form-title" required placeholder="Ej: Freestyle #04, Sesión de estudio..." class="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:border-emerald-500 outline-none font-sans">
+</div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-zinc-400 mb-1">Día Previsto Publicación *</label>
+                        <select id="form-diapub" required class="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:border-emerald-500 outline-none">
+                            <option value="Martes">Martes</option>
+                            <option value="Jueves">Jueves</option>
+                            <option value="Por definir">Por definir</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-zinc-400 mb-1">Fecha Propuesta Rodaje *</label>
+                        <input type="date" id="form-fecharodaje" required onclick="try{this.showPicker()}catch(e){}" class="w-full bg-zinc-950 border border-zinc-800 rounded p-2.5 text-white focus:border-emerald-500 outline-none cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-zinc-500 mb-1">Código de Seguimiento (Auto)</label>
+                    <input type="text" id="form-codigo" readonly class="w-full bg-zinc-950/50 border border-zinc-800/80 rounded p-2.5 text-zinc-500 cursor-not-allowed">
+                </div>
+
+                <div class="bg-zinc-950 p-3 rounded border border-zinc-800/80 text-[11px] text-zinc-400 leading-relaxed font-sans">
+                    💡 <span class="text-zinc-300 font-semibold">Siguiente paso:</span> Al guardar, el proyecto aparecerá en la Columna 1 para que Cesc, Myke y Boni confirmen disponibilidad.
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded">Lanzar Propuesta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-zinc-900 bg-zinc-950 py-4 text-center text-[10px] font-mono text-zinc-600">
+        MOSAIC COLECTIVO © 2026 — Cesc, Myke & Boni. Minimalist Content Production System.
+    </footer>
+
+<!-- SCRIPT APPLICATION LOGIC -->
+    <script>
+        // APP INITIAL STATE
+        let currentFilter = 'all';
+        let currentView = 'tablero';
+        let activeMonth = new Date(2026, 9, 1); // Default October 2026
+
+        // Initial Data
+        let cards = [
+            {
+                id: 'm1',
+                codigo: 'MOS_261103_FREE',
+                title: 'Propuesta Freestyle Terraza',
+                formato: 'Freestyle',
+                diaPub: 'Martes',
+                fechaRodaje: '2026-11-03',
+                column: 'cuadrando',
+                avail: { cesc: true, myke: true, boni: false },
+                cescScheduled: false, // <-- NUEVA PROPIEDAD
+                mykeNotes: 'Cámara retro a 45°, micro visible en fondo',
+                mykeCheck: false,
+                mykeDocsPassed: false,
+                boniTitle: '',
+                boniCheck: false,
+                boniThumb: false,
+                boniSentToCesc: false
+            },
+            {
+                id: 'm2',
+                codigo: 'MOS_261105_DESM',
+                title: 'Desmontando Single',
+                formato: 'Desmontando',
+                diaPub: 'Jueves',
+                fechaRodaje: '2026-11-05',
+                column: 'rodaje',
+                avail: { cesc: true, myke: true, boni: true },
+                cescScheduled: false, // <-- NUEVA PROPIEDAD
+                mykeNotes: 'Ableton Live abierto en pantalla, 3 micros',
+                mykeCheck: true,
+                mykeDocsPassed: true,
+                boniTitle: '',
+                boniCheck: false,
+                boniThumb: false,
+                boniSentToCesc: false
+            },
+            {
+                id: 'm3',
+                codigo: 'MOS_261027_LYR',
+                title: 'Lyrics - "Sombra de Fondo"',
+                formato: 'Lyrics',
+                diaPub: 'Martes',
+                fechaRodaje: '2026-10-27',
+                column: 'edicion',
+                avail: { cesc: true, myke: true, boni: true },
+                cescScheduled: false, // <-- NUEVA PROPIEDAD (Pon true si ya está programado)
+                mykeNotes: 'Silla de camping, luz natural',
+                mykeCheck: true,
+                mykeDocsPassed: true,
+                boniTitle: 'Desglose de Barras Genius',
+                boniCheck: false,
+                boniThumb: true,
+                boniSentToCesc: false
+            },
+            {
+                id: 'm4',
+                codigo: 'MOS_261030_FREE',
+                title: 'Freestyle #02 (Martes)',
+                formato: 'Freestyle',
+                diaPub: 'Martes',
+                fechaRodaje: '2026-10-28',
+                column: 'programado',
+                avail: { cesc: true, myke: true, boni: true },
+                cescScheduled: true, // <-- NUEVA PROPIEDAD (true porque ya está en programado)
+                mykeNotes: 'Grabado con éxito',
+                mykeCheck: true,
+                mykeDocsPassed: true,
+                boniTitle: '"No buscamos el brillo, buscamos el tono..." 🎯',
+                boniCheck: true,
+                boniThumb: true,
+                boniSentToCesc: true
+            }
+        ];
+
+        // LOAD LOCALSTORAGE OR USE DEFAULTS
+        function loadState() {
+            const saved = localStorage.getItem('mosaic_flow_cards_v14');
+            if (saved) {
+                try { cards = JSON.parse(saved); } catch(e){}
+            }
+            render();
+        }
+
+        function saveState() {
+            localStorage.setItem('mosaic_flow_cards_v14', JSON.stringify(cards));
+            render();
+        }
+
+        // VIEW SWITCHING
+        function switchView(viewName) {
+            currentView = viewName;
+            document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+            document.querySelectorAll('header button').forEach(b => {
+                if(b.id && b.id.startsWith('tab-')) {
+                    b.className = "px-3 py-1.5 rounded-md flex items-center gap-2 transition text-zinc-400 hover:text-white";
+                }
+            });
+            const activeTab = document.getElementById(`tab-${viewName}`);
+            if(activeTab) {
+                activeTab.className = "px-3 py-1.5 rounded-md flex items-center gap-2 transition bg-zinc-800 text-white font-semibold";
+            }
+            render();
+        }
+
+        // FILTER SETTING
+        function setFilter(fmt) {
+            currentFilter = fmt;
+            document.querySelectorAll('#filter-container button').forEach(b => {
+                if (b.dataset.filter === fmt) {
+                    b.className = "filter-btn active px-2.5 py-1 rounded bg-zinc-800 text-white font-mono";
+                } else {
+                    b.className = "filter-btn px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 font-mono text-zinc-400";
+                }
+            });
+            render();
+        }
+
+        // MODAL LOGIC
+        function openModal() {
+            const dateStr = new Date().toISOString().slice(2,10).replace(/-/g,'');
+            document.getElementById('form-codigo').value = `MOS_${dateStr}`;
+            document.getElementById('modal-new').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-new').classList.add('hidden');
+        }
+
+        function handleCreateCard(e) {
+            e.preventDefault();
+            const title = document.getElementById('form-title').value.trim(); // <-- Cogemos el título personalizado
+            const formato = document.getElementById('form-formato').value;
+            const diaPub = document.getElementById('form-diapub').value;
+            const fechaRodaje = document.getElementById('form-fecharodaje').value;
+
+            const newCard = {
+                id: 'm_' + Date.now(),
+                codigo: `MOS_${fechaRodaje.replace(/-/g,'').slice(2)}_${formato.slice(0,3).toUpperCase()}`,
+                title: title || `Propuesta ${formato}`, // <-- Usamos el título personalizado (o fallback por si acaso)
+                formato,
+                diaPub,
+                fechaRodaje,
+                column: 'cuadrando',
+                avail: { cesc: true, myke: false, boni: false },
+                mykeNotes: '',
+                mykeCheck: false,
+                mykeDocsPassed: false,
+                boniTitle: '',
+                boniCheck: false,
+                boniThumb: false,
+                boniSentToCesc: false
+            };
+
+            cards.unshift(newCard);
+            saveState();
+            closeModal();
+            renderAll(); // Asegúrate de llamar a render para que se actualice la vista al cerrar
+        }
+
+        // CYCLE AVAILABILITY
+        function cycleAvail(cardId, member, e) {
+            if(e) e.stopPropagation();
+            const card = cards.find(c => c.id === cardId);
+            if(card) {
+                const current = card.avail[member];
+                if (current === true) {
+                    card.avail[member] = false;
+                } else if (current === false) {
+                    card.avail[member] = null;
+                } else {
+                    card.avail[member] = true;
+                }
+                saveState();
+            }
+        }
+
+        // DELETE CARD HANDLER
+        function deleteCard(cardId, e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            if (confirm('¿Seguro que quieres eliminar esta propuesta de vídeo?')) {
+                cards = cards.filter(c => c.id !== cardId);
+                saveState();
+            }
+        }
+
+        // MOVE CARD TO NEXT/PREV COLUMN
+        function moveCard(cardId, nextCol, e) {
+            if(e) e.stopPropagation();
+            const card = cards.find(c => c.id === cardId);
+            if (card) {
+                card.column = nextCol;
+                saveState();
+            }
+        }
+
+        function getPrevCol(col) {
+            if(col === 'rodaje') return 'cuadrando';
+            if(col === 'edicion') return 'rodaje';
+            if(col === 'programado') return 'edicion';
+            return 'cuadrando';
+        }
+
+        function getNextCol(col) {
+            if(col === 'cuadrando') return 'rodaje';
+            if(col === 'rodaje') return 'edicion';
+            if(col === 'edicion') return 'programado';
+            return 'programado';
+        }
+
+        // MONTH NAVIGATION
+        function changeMonth(delta) {
+            activeMonth.setMonth(activeMonth.getMonth() + delta);
+            renderCalendar();
+        }
+
+        // MAIN RENDER FUNCTION
+        function render() {
+            const filteredCards = cards.filter(c => currentFilter === 'all' || c.formato === currentFilter);
+
+            if (currentView === 'tablero') {
+                renderTablero(filteredCards);
+            } else if (currentView === 'cesc') {
+                renderCescView(filteredCards);
+            } else if (currentView === 'myke') {
+                renderMykeView(filteredCards);
+            } else if (currentView === 'boni') {
+                renderBoniView(filteredCards);
+            }
+        }
+
+        // FORMAT COLOR HELPER FOR BADGES
+        function getFormatoBadge(formato) {
+            let cls = "bg-zinc-800 text-zinc-300 border-zinc-700";
+            if (formato === 'Freestyle') {
+                cls = "bg-blue-500/10 text-blue-400 border-blue-500/30";
+            } else if (formato === 'Desmontando') {
+                cls = "bg-amber-500/10 text-amber-400 border-amber-500/30";
+            } else if (formato === 'Reacciones') {
+                cls = "bg-rose-500/10 text-rose-400 border-rose-500/30";
+            } else if (formato === 'Lyrics') {
+                cls = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+            }
+            return `<span class="text-[9px] font-mono px-2 py-0.5 rounded border font-bold uppercase ${cls}">${formato}</span>`;
+        }
+
+// RENDER KANBAN TABLERO
+function renderTablero(filteredCards) {
+            const cols = ['cuadrando', 'rodaje', 'edicion', 'programado'];
+            
+            cols.forEach(col => {
+                const container = document.getElementById(`col-${col}`);
+                const countEl = document.getElementById(`count-${col}`);
+                
+                // Filtramos para que si está marcado como programado (cescScheduled), desaparezca del tablero general
+                const colCards = filteredCards.filter(c => {
+                    if (c.cescScheduled && col === 'programado') {
+                        return false; // Al marcarlo, se oculta de la columna programado del tablero general
+                    }
+                    return c.column === col;
+                });
+
+                countEl.textContent = colCards.length;
+                container.innerHTML = '';
+
+                if (colCards.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-zinc-600 font-mono text-xs border border-dashed border-zinc-800/60 rounded-lg">Vacío</div>`;
+                    return;
+                }
+
+                colCards.forEach(card => {
+                    const cardEl = document.createElement('div');
+                    cardEl.className = "bg-zinc-900 border border-zinc-800 rounded-lg p-3 space-y-3 shadow-md hover:border-zinc-700 transition relative group";
+
+                    // Availability HTML helper
+                    const getAvailBadge = (member, state) => {
+                        let icon = '<i class="ph ph-minus text-zinc-500"></i>';
+                        let cls = 'bg-zinc-800 text-zinc-400 border-zinc-700';
+                        if (state === true) {
+                            icon = '<i class="ph ph-check text-emerald-400 font-bold"></i>';
+                            cls = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                        } else if (state === false) {
+                            icon = '<i class="ph ph-x text-rose-400 font-bold"></i>';
+                            cls = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                        }
+                        return `<button onclick="cycleAvail('${card.id}', '${member}', event)" class="px-2 py-1 rounded border text-[10px] font-mono flex items-center gap-1 transition ${cls}">
+                            <span class="uppercase font-bold">${member}:</span> ${icon}
+                        </button>`;
+                    };
+
+                    let phaseContentHtml = '';
+
+                    if (col === 'cuadrando') {
+                        phaseContentHtml = `
+                            <div class="space-y-1">
+                                <span class="text-[9px] font-mono text-zinc-500 block uppercase">Disponibilidad:</span>
+                                <div class="flex gap-1">
+                                    ${getAvailBadge('cesc', card.avail.cesc)}
+                                    ${getAvailBadge('myke', card.avail.myke)}
+                                    ${getAvailBadge('boni', card.avail.boni)}
+                                </div>
+                            </div>
+                        `;
+                    } else if (col === 'rodaje') {
+                        phaseContentHtml = `
+                            <div class="space-y-2 text-xs font-mono bg-zinc-950 p-2.5 rounded border border-zinc-800/80">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" ${card.mykeCheck ? 'checked' : ''} onchange="toggleMykeCheck('${card.id}')" class="rounded accent-amber-500 w-3.5 h-3.5">
+                                    <span class="text-zinc-300 text-[11px]">Material y Atrezzo Controlado</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" ${card.mykeDocsPassed ? 'checked' : ''} onchange="toggleMykeDocs('${card.id}')" class="rounded accent-amber-500 w-3.5 h-3.5">
+                                    <span class="text-zinc-300 text-[11px]">Documentos/Brutos Enviados a Boni</span>
+                                </label>
+                                ${card.mykeNotes ? `<div class="text-[10px] text-zinc-400 border-t border-zinc-800/80 pt-1.5 mt-1">🎥 ${card.mykeNotes}</div>` : ''}
+                            </div>
+                        `;
+                    } else if (col === 'edicion') {
+                        phaseContentHtml = `
+                            <div class="space-y-2 text-xs font-mono bg-zinc-950 p-2.5 rounded border border-zinc-800/80">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" ${card.boniCheck ? 'checked' : ''} onchange="toggleBoniCheck('${card.id}')" class="rounded accent-blue-500 w-3.5 h-3.5">
+                                    <span class="text-zinc-300 text-[11px]">Vídeo Editado al 100%</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" ${card.boniThumb ? 'checked' : ''} onchange="toggleBoniThumb('${card.id}')" class="rounded accent-blue-500 w-3.5 h-3.5">
+                                    <span class="text-zinc-300 text-[11px]">Cartel / Miniatura Creada</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" ${card.boniSentToCesc ? 'checked' : ''} onchange="toggleBoniSentToCesc('${card.id}')" class="rounded accent-blue-500 w-3.5 h-3.5">
+                                    <span class="text-zinc-300 text-[11px]">Enviado a Cesc para Programar</span>
+                                </label>
+                            </div>
+                        `;
+                    } else if (col === 'programado') {
+                        phaseContentHtml = `
+                            <div class="bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded text-[11px] font-mono text-emerald-400 space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <i class="ph ph-check-circle text-base"></i>
+                                    <span>Listo y Programado (${card.diaPub})</span>
+                                </div>
+                                <!-- CASILLA MANUAL AQUÍ -->
+                                <label class="flex items-center gap-2 cursor-pointer pt-2 border-t border-emerald-500/20">
+                                    <input type="checkbox" ${card.cescScheduled ? 'checked' : ''} onchange="toggleCescScheduled('${card.id}')" class="rounded accent-emerald-500 w-3.5 h-3.5">
+                                    <span class="text-white text-[11px] font-bold">Confirmar y Ocultar del Tablero</span>
+                                </label>
+                            </div>
+                        `;
+                    }
+
+                    cardEl.innerHTML = `
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="flex items-center gap-1.5 mb-1">
+                                    ${getFormatoBadge(card.formato)}
+                                    <span class="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1 rounded">${card.diaPub}</span>
+                                </div>
+                                <h3 class="font-bold text-xs text-white mt-1">${card.boniTitle || card.title}</h3>
+                                <p class="text-[10px] font-mono text-zinc-500">${card.codigo}</p>
+                            </div>
+                        </div>
+
+                        <!-- Date info -->
+                        <div class="bg-zinc-950 p-2 rounded border border-zinc-800/80 text-[11px] font-mono flex justify-between text-zinc-400">
+                            <span>Rodaje:</span>
+                            <span class="text-zinc-200 font-semibold">${card.fechaRodaje || 'Por definir'}</span>
+                        </div>
+
+                        ${phaseContentHtml}
+
+                        <!-- Controls & Trash -->
+                        <div class="flex items-center justify-between border-t border-zinc-800/80 pt-2 mt-1">
+                            <button onclick="deleteCard('${card.id}', event)" title="Eliminar" class="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded transition cursor-pointer flex items-center gap-1 text-[10px] font-mono">
+                                <i class="ph ph-trash text-xs pointer-events-none"></i> Eliminar
+                            </button>
+
+                            <div class="flex items-center gap-1">
+                                ${col !== 'cuadrando' ? `<button onclick="moveCard('${card.id}', '${getPrevCol(col)}', event)" class="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] text-zinc-300 font-mono"><i class="ph ph-caret-left"></i></button>` : ''}
+                                ${col !== 'programado' ? `<button onclick="moveCard('${card.id}', '${getNextCol(col)}', event)" class="px-2 py-0.5 bg-white text-black font-semibold hover:bg-zinc-200 rounded text-[10px] font-mono flex items-center gap-1">Mover <i class="ph ph-caret-right"></i></button>` : ''}
+                            </div>
+                        </div>
+                    `;
+
+                    container.appendChild(cardEl);
+                });
+            });
+        }
+
+        // RENDER CESC WORKSPACE
+        function renderCescView(filteredCards) {
+            const prog = cards.filter(c => c.column === 'programado').length;
+            const pend = cards.filter(c => c.column !== 'programado').length;
+            document.getElementById('cesc-stat-prog').textContent = prog;
+            document.getElementById('cesc-stat-pend').textContent = pend;
+
+            const scheduleContainer = document.getElementById('cesc-weekly-schedule');
+            scheduleContainer.innerHTML = '';
+
+            filteredCards.forEach(card => {
+                let badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/30";
+                let badgeText = "CUADRANDO";
+
+                if (card.column === 'rodaje') {
+                    badgeStyle = "bg-rose-500/10 text-rose-400 border-rose-500/30";
+                    badgeText = "RODAJE";
+                } else if (card.column === 'edicion') {
+                    badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/30";
+                    badgeText = "EDICION";
+                } else if (card.column === 'programado') {
+                    badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+                    badgeText = "PROGRAMACION";
+                }
+
+                const el = document.createElement('div');
+                el.className = "bg-zinc-950 border border-zinc-800/80 rounded-lg p-3 flex items-center justify-between";
+                el.innerHTML = `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            ${getFormatoBadge(card.formato)}
+                            <span class="text-[9px] font-mono font-bold text-emerald-400 uppercase">${card.diaPub}</span>
+                        </div>
+                        <h4 class="font-bold text-xs text-white">${card.boniTitle || card.title}</h4>
+                        <p class="text-[10px] font-mono text-zinc-500">Código: ${card.codigo} | Rodaje: ${card.fechaRodaje}</p>
+                    </div>
+                    <span class="text-[10px] font-mono px-2 py-1 rounded border font-semibold ${badgeStyle}">${badgeText}</span>
+                `;
+                scheduleContainer.appendChild(el);
+            });
+
+            renderCalendar();
+        }
+
+// RENDER MONTHLY CALENDAR FOR CESC
+        function renderCalendar() {
+            const container = document.getElementById('calendar-days-container');
+            container.innerHTML = '';
+
+            const year = activeMonth.getFullYear();
+            const month = activeMonth.getMonth();
+
+            const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+            document.getElementById('calendar-month-title').textContent = `${monthNames[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1);
+            let startingDay = firstDay.getDay() - 1;
+            if (startingDay === -1) startingDay = 6;
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date(2026, 9, 30); // Oct 30, 2026
+
+            for (let i = 0; i < startingDay; i++) {
+                container.innerHTML += `<div class="bg-zinc-900/10 rounded min-h-[70px] border border-zinc-900/30"></div>`;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const currentDate = new Date(year, month, day);
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const isToday = currentDate.getFullYear() === today.getFullYear() &&
+                                currentDate.getMonth() === today.getMonth() &&
+                                currentDate.getDate() === today.getDate();
+
+                const dayCards = cards.filter(c => c.fechaRodaje === dateStr);
+
+                let cardsHtml = '';
+                dayCards.forEach(c => {
+                    const isProg = c.column === 'programado';
+                    const allAccepted = c.avail && c.avail.cesc && c.avail.myke && c.avail.boni;
+
+                    let colorClass = '';
+                    if (isProg) {
+                        colorClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'; // Verde si programado
+                    } else if (allAccepted) {
+                        colorClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40'; // Amarillo si los tres aceptan
+                    } else {
+                        colorClass = 'bg-rose-500/20 text-rose-300 border-rose-500/40'; // Rojo si falta alguna aceptación
+                    }
+
+                    cardsHtml += `<div class="text-[9px] font-mono px-1 py-0.5 rounded border ${colorClass} truncate mt-1" title="${c.title}">
+- ${c.boniTitle || c.title}
+                    </div>`;
+                });
+
+                container.innerHTML += `
+                    <div class="bg-zinc-900/40 rounded p-1.5 min-h-[75px] border ${isToday ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/10' : 'border-zinc-800/50'} text-left flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono ${isToday ? 'font-bold text-emerald-400' : 'text-zinc-400'}">${day}</span>
+                            ${isToday ? '<span class="text-[8px] font-mono bg-emerald-500 text-black font-bold px-1 rounded">HOY</span>' : ''}
+                        </div>
+                        <div class="space-y-0.5">${cardsHtml}</div>
+                    </div>
+                `;
+            }
+        }
+// RENDER MYKE WORKSPACE
+        function renderMykeView(filteredCards) {
+            const container = document.getElementById('myke-cards-container');
+            container.innerHTML = '';
+
+            // AÑADE ESTE FILTRO: Solo tarjetas en columna 'rodaje'
+            const mykeCards = filteredCards.filter(c => c.column === 'rodaje');
+
+            if (mykeCards.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-zinc-600 font-mono text-xs border border-dashed border-zinc-800/60 rounded-lg col-span-full">No hay tareas de rodaje pendientes</div>`;
+                return;
+            }
+
+            // Y CAMBIA filteredCards.forEach por mykeCards.forEach
+            mykeCards.forEach(card => {
+                const el = document.createElement('div');
+                el.className = "bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-3";
+                el.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                        <div>
+                            ${getFormatoBadge(card.formato)}
+                            <h3 class="font-bold text-sm text-white mt-1">${card.title}</h3>
+                        </div>
+                        <span class="text-xs font-mono text-zinc-400">Rodaje: ${card.fechaRodaje}</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-mono text-zinc-400 mb-1">Notas de Material / Atrezzo (Myke):</label>
+                        <input type="text" value="${card.mykeNotes || ''}" onchange="updateMykeNotes('${card.id}', this.value)" placeholder="Ej: Cámara retro 45º, micro visible..." class="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white font-mono focus:border-amber-500 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono pt-1">
+                        <label class="flex items-center gap-2 cursor-pointer bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                            <input type="checkbox" ${card.mykeCheck ? 'checked' : ''} onchange="toggleMykeCheck('${card.id}')" class="rounded accent-amber-500 w-4 h-4">
+                            <span class="text-zinc-300">Material y Atrezzo Controlado</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                            <input type="checkbox" ${card.mykeDocsPassed ? 'checked' : ''} onchange="toggleMykeDocs('${card.id}')" class="rounded accent-amber-500 w-4 h-4">
+                            <span class="text-zinc-300">Documentos / Brutos Enviados a Boni</span>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function updateMykeNotes(id, val) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.mykeNotes = val; saveState(); }
+        }
+
+        function toggleMykeCheck(id) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.mykeCheck = !c.mykeCheck; saveState(); }
+        }
+
+        function toggleMykeDocs(id) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.mykeDocsPassed = !c.mykeDocsPassed; saveState(); }
+        }
+
+// RENDER BONI WORKSPACE
+        function renderBoniView(filteredCards) {
+            const container = document.getElementById('boni-cards-container');
+            container.innerHTML = '';
+
+            // FILTRO: Boni solo ve las tarjetas que están exactamente en la columna 'edicion'
+            const boniCards = filteredCards.filter(c => c.column === 'edicion');
+
+            if (boniCards.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-zinc-600 font-mono text-xs border border-dashed border-zinc-800/60 rounded-lg col-span-full">No hay tareas de edición pendientes</div>`;
+                return;
+            }
+
+            boniCards.forEach(card => {
+                const el = document.createElement('div');
+                el.className = "bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-3";
+                el.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                        <div>
+                            ${getFormatoBadge(card.formato)}
+                            <h3 class="font-bold text-sm text-white mt-1">${card.title}</h3>
+                        </div>
+                        <span class="text-xs font-mono text-zinc-400">Publicación: ${card.diaPub}</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-mono text-zinc-400 mb-1">Título Definitivo del Tema / Barra (Boni):</label>
+                        <input type="text" value="${card.boniTitle || ''}" onchange="updateBoniTitle('${card.id}', this.value)" placeholder="Ej: Freestyle #04 - 'Sin Brillo'" class="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-white font-mono focus:border-blue-500 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs font-mono">
+                        <label class="flex items-center gap-2 cursor-pointer bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                            <input type="checkbox" ${card.boniCheck ? 'checked' : ''} onchange="toggleBoniCheck('${card.id}')" class="rounded accent-blue-500 w-4 h-4">
+                            <span class="text-zinc-300">Vídeo Editado al 100%</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                            <input type="checkbox" ${card.boniThumb ? 'checked' : ''} onchange="toggleBoniThumb('${card.id}')" class="rounded accent-blue-500 w-4 h-4">
+                            <span class="text-zinc-300">Cartel / Miniatura Creada</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-zinc-900 p-2 rounded border border-zinc-800/80">
+                            <input type="checkbox" ${card.boniSentToCesc ? 'checked' : ''} onchange="toggleBoniSentToCesc('${card.id}')" class="rounded accent-blue-500 w-4 h-4">
+                            <span class="text-zinc-300">Enviado a Cesc</span>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function updateBoniTitle(id, val) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.boniTitle = val; saveState(); }
+        }
+
+        function toggleBoniCheck(id) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.boniCheck = !c.boniCheck; saveState(); }
+        }
+
+        function toggleBoniThumb(id) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.boniThumb = !c.boniThumb; saveState(); }
+        }
+
+        function toggleBoniSentToCesc(id) {
+            const c = cards.find(x => x.id === id);
+            if(c) { c.boniSentToCesc = !c.boniSentToCesc; saveState(); }
+        }
+
+        // INITIAL ONLOAD RUN
+        window.onload = function() {
+            loadState();
+        };
+
+        function toggleCescScheduled(id) {
+            const c = cards.find(x => x.id === id);
+            if(c) {
+                c.cescScheduled = !c.cescScheduled;
+                saveState();
+                render(); // Forzamos que se vuelva a renderizar la vista actual (el tablero) al instante
+            }
+        }
+
+    </script>
+</body>
+</html>
